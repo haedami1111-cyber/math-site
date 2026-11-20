@@ -534,7 +534,7 @@
         return fetch(SUPABASE_URL + '/functions/v1/' + encodeURIComponent(AI_FUNCTION_NAME), {
           method: 'POST',
           headers: h,
-          body: JSON.stringify(Object.assign({ mode: mode }, needKey ? { model: getModel() } : {}, payload || {}))
+          body: JSON.stringify(Object.assign({ mode: mode }, needKey ? { model: getModel(), fallbacks: getFallbacks() } : {}, payload || {}))
         });
       }
       var r = await go();
@@ -569,6 +569,15 @@
       if (v === CUSTOM) v = (($('gmodel-input') && $('gmodel-input').value) || '').trim().replace(/^models\//, '');
       if (!MODEL_RE_C.test(v)) v = DEFAULT_MODEL;
       return v;
+    }
+    // 선택한 모델이 혼잡할 때 서버가 대신 쓸 모델 (목록의 다른 flash 계열, 최대 2개)
+    function getFallbacks() {
+      var sel = $('gmodel-select'), cur = getModel(), out = [];
+      if (!sel) return out;
+      var ids = [].slice.call(sel.options).map(function (o) { return o.value; })
+        .filter(function (v) { return v !== CUSTOM && v !== cur && /flash/i.test(v) && MODEL_RE_C.test(v); });
+      ids.sort(function (a, b) { return verNum(b) - verNum(a); });
+      return ids.slice(0, 2);
     }
     function verNum(id) { var m = /^gemini-(\d+(?:\.\d+)?)/.exec(id); return m ? parseFloat(m[1]) : 0; }
     // 모델 목록에서 보여줄 것만 고르기 (글쓰기·풀이용 모델)
