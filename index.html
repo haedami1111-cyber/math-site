@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="수능 수학 문제 사진을 올리면 그래프와 구어체 풀이, 빈칸 훈련, 수능형 변형 문제까지 무료로 만들어 주는 AI 튜터">
+  <title>AI 실전 수학 튜터 노트</title>
+
+  <!-- 맨 먼저 실행: 자바스크립트 오류가 나면 화면 위에 빨간 배너로 보여줌 -->
+  <script>
+    function showFatal(msg) {
+      var d = document.getElementById('fatal-banner');
+      if (!d) {
+        d = document.createElement('div');
+        d.id = 'fatal-banner';
+        d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#fee2e2;color:#b91c1c;border-bottom:3px solid #ef4444;padding:12px 16px;font:14px/1.5 sans-serif;white-space:pre-wrap;';
+        (document.body || document.documentElement).appendChild(d);
+      }
+      d.textContent = '🚨 스크립트 오류: ' + msg;
+    }
+    window.addEventListener('error', function (e) { showFatal(e.message + (e.lineno ? ' (줄 ' + e.lineno + ')' : '')); });
+    window.addEventListener('unhandledrejection', function (e) { showFatal(String(e.reason && e.reason.message ? e.reason.message : e.reason)); });
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/d3@7"></script>
+  <script src="https://unpkg.com/function-plot@1/dist/function-plot.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    body { background-color: #d1d5db; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    .control-panel {
+      background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      width: 950px; max-width: 100%; margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box;
+    }
+    .input-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .input-group input[type="password"], .input-group input[type="text"], .input-group select, .input-group textarea { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; font-size: 14px; }
+    .input-group input[type="password"] { flex-grow: 1; }
+    .btn { background-color: #3b82f6; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .btn:hover { background-color: #2563eb; }
+    .btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    .btn-sub { background-color: #6b7280; }
+    .btn-sub:hover { background-color: #4b5563; }
+    .btn-danger { background-color: #ef4444; padding: 4px 10px; font-size: 12px; }
+    .btn-danger:hover { background-color: #dc2626; }
+    #loading-spinner { display: none; color: #3b82f6; font-weight: bold; text-align: center; }
+    .muted { color: #6b7280; font-size: 13px; line-height: 1.6; }
+    details.panel { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; background: #f9fafb; }
+    details.panel > summary { cursor: pointer; font-weight: bold; font-size: 15px; }
+    details.panel[open] > summary { margin-bottom: 10px; }
+    .note-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #e5e7eb; font-size: 13px; }
+    .note-item .note-name { flex: 1; word-break: break-all; }
+    #learn-status { font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
+
+    .notebook-paper {
+      width: 950px; max-width: 100%; min-height: 800px; background-color: #fdfbf7;
+      background-image: linear-gradient(#e5e7eb 1px, transparent 1px); background-size: 100% 40px;
+      padding: 40px 40px 60px 80px; border-left: 2px solid #ef4444; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      font-family: 'Nanum Pen Script', cursive; font-size: 26px; color: #374151; line-height: 40px; box-sizing: border-box;
+    }
+    .section-title { font-size: 32px; color: #1f2937; border-bottom: 2px dashed #9ca3af; margin-top: 40px; margin-bottom: 15px; display: inline-block; line-height: 32px; }
+    .problem-box { background-color: rgba(255, 255, 255, 0.6); border: 1px solid #d1d5db; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; }
+    .original-img { max-width: 100%; border: 1px solid #d1d5db; border-radius: 6px; background: white; display: block; }
+    details.orig-text { font-size: 18px; line-height: 1.6; margin-top: 8px; font-family: sans-serif; color: #6b7280; }
+
+    /* 강조 마크업: 빨강=핵심 문장, 파랑=조건, 형광펜=구하는 것 */
+    .mk-r { color: #dc2626; font-weight: bold; }
+    .mk-b { color: #1d4ed8; font-weight: bold; }
+    .mk-h { background: linear-gradient(180deg, rgba(255,255,255,0) 40%, #fde047 40%); padding: 0 3px; font-weight: bold; }
+    .legend { font-size: 22px; margin: 6px 0 0; padding: 6px 12px; background: rgba(255,255,255,0.8); border: 1px dashed #9ca3af; border-radius: 8px; display: inline-block; line-height: 1.6; }
+    .legend span { margin-right: 14px; }
+
+    .action-arrow { color: #ef4444; font-weight: bold; margin: 0 10px; }
+    .pa-row { margin: 0 0 6px; line-height: 1.5; }
+
+    .step-card { background: rgba(255,255,255,0.92); border: 1px solid #e5e7eb; border-left: 6px solid #f59e0b; border-radius: 10px; padding: 14px 20px 16px; margin: 0 0 16px; line-height: 1.55; }
+    .step-title { font-size: 30px; font-weight: bold; color: #1f2937; margin-bottom: 4px; line-height: 1.3; }
+    .step-no { display: inline-block; background: #f59e0b; color: white; border-radius: 50%; width: 34px; height: 34px; line-height: 34px; text-align: center; margin-right: 10px; font-size: 24px; }
+    .step-text { font-size: 27px; }
+
+    .graph-wrap { margin: 12px 0 4px; text-align: center; }
+    .graph-title { font-size: 22px; color: #4b5563; line-height: 1.2; margin-bottom: 2px; }
+    .graph-box { display: inline-block; max-width: 100%; }
+    .graph-fail { color: #9ca3af; font-size: 18px; font-family: sans-serif; }
+    .graph-box svg text { font-family: sans-serif; }
+
+    .case-container { background-color: rgba(255,255,255,0.9); border-radius: 12px; padding: 20px; margin-top: 20px; border-left: 6px solid #9ca3af; }
+    .case-invalid { border-left-color: #ef4444; }
+    .case-valid { border-left-color: #3b82f6; }
+    .case-title { font-size: 28px; font-weight: bold; margin-top: 0; line-height: 30px; }
+    .case-invalid .case-title { color: #b91c1c; }
+    .case-valid .case-title { color: #1d4ed8; }
+
+    .blank-input { font-family: 'Nanum Pen Script', cursive; font-size: 24px; color: #1f2937; border: none; border-bottom: 2px dashed #9ca3af; background-color: transparent; text-align: center; width: 120px; margin: 0 5px; outline: none; }
+    .quiz-item { margin-bottom: 12px; line-height: 1.8; }
+    .check-btn { font-family: 'Nanum Pen Script', cursive; font-size: 22px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; padding: 4px 16px; cursor: pointer; margin: 10px 8px 0 0; }
+    .check-btn.alt { background-color: #6b7280; }
+
+    .tab-container { margin-bottom: 10px; }
+    .tab-btn { font-family: 'Nanum Pen Script', cursive; font-size: 22px; background-color: #e5e7eb; border: 1px solid #d1d5db; border-radius: 6px 6px 0 0; padding: 6px 16px; cursor: pointer; margin-right: 4px; }
+    .tab-btn.active { background-color: white; border-bottom-color: white; font-weight: bold; }
+    .tab-extreme { color: #ef4444; font-weight: bold; }
+    .sim-pane { display: none; }
+    .sim-pane.active { display: block; }
+
+    /* 수식 표기 */
+    sup, sub { line-height: 0; font-size: 0.7em; }
+    .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 3px; line-height: 1.25; }
+    .frac > span:first-child { border-bottom: 1px solid currentColor; padding: 0 3px; }
+    .cases { display: inline-flex; align-items: center; vertical-align: middle; margin: 4px 2px; line-height: 1.5; }
+    .cases-brace { width: 12px; align-self: stretch; margin: 0 5px; flex: none; }
+    .cases-rows { display: flex; flex-direction: column; }
+
+    /* 수능형 시험지 */
+    .exam-wrap { margin-bottom: 10px; }
+    .exam-paper { background: #fff; border: 1px solid #111; padding: 26px 32px 22px; font-family: 'Noto Serif KR', 'Batang', '바탕', serif; font-size: 17px; line-height: 1.95; color: #111; }
+    .exam-paper .mk-r, .exam-paper .mk-b, .exam-paper .mk-h { color: inherit; background: none; font-weight: inherit; padding: 0; }
+    .exam-stem { margin: 0 0 8px; }
+    .exam-no { font-size: 22px; font-weight: 700; margin-right: 6px; }
+    .exam-pts { margin-left: 6px; font-weight: 700; font-size: 15px; white-space: nowrap; }
+    .exam-box { border: 1px solid #111; padding: 8px 16px; margin: 10px 0; }
+    .exam-box-title { text-align: center; font-weight: 700; margin-bottom: 2px; }
+    .exam-graph { text-align: center; margin: 8px 0; }
+    .exam-choices { display: flex; flex-wrap: wrap; gap: 4px 30px; margin-top: 12px; }
+    .exam-choices > span { white-space: nowrap; }
+    .exam-foot { margin-top: 10px; text-align: right; font-size: 12px; color: #6b7280; }
+    details.exam-sol { margin-top: 10px; background: rgba(255,255,255,0.9); border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 16px; font-size: 24px; line-height: 1.5; }
+    details.exam-sol > summary { cursor: pointer; font-weight: bold; }
+    .exam-save { font-family: sans-serif; font-size: 13px; background: #111827; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; margin-top: 8px; }
+    .exam-save:hover { background: #374151; }
+    /* 학습 DB 보기 */
+    #db-search { width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; font-family: sans-serif; margin-bottom: 8px; }
+    .db-count { font-size: 20px; color: #6b7280; margin-bottom: 4px; line-height: 1.4; }
+    .db-card { background: rgba(255,255,255,0.92); border: 1px solid #e5e7eb; border-left: 6px solid #8b5cf6; border-radius: 10px; padding: 10px 16px 12px; margin: 0 0 12px; line-height: 1.5; font-size: 24px; }
+    .db-card.rel { border-left-color: #0ea5e9; }
+    .db-card.dont { border-left-color: #ef4444; }
+    .db-card.do { border-left-color: #22c55e; }
+    .db-card.bank { border-left-color: #f59e0b; }
+    .db-title { font-size: 28px; font-weight: bold; line-height: 1.3; }
+    .db-tag { font-size: 14px; background: #ede9fe; color: #5b21b6; border-radius: 10px; padding: 1px 8px; margin-left: 8px; font-family: sans-serif; vertical-align: middle; }
+    .db-src { font-size: 13px; color: #9ca3af; margin-left: 8px; font-family: sans-serif; vertical-align: middle; }
+      /* 학생용 추가 스타일 */
+    .auth-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .auth-row input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    #quota-badge { font-weight: bold; color: #1d4ed8; font-size: 14px; }
+    .report-btn { font-family: sans-serif; font-size: 13px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 12px; cursor: pointer; margin: 20px 0 0; }
+    .report-btn:hover { background: #f3f4f6; }
+    .disclaimer { font-family: sans-serif; font-size: 12.5px; color: #6b7280; line-height: 1.7; margin-top: 18px; width: 950px; max-width: 100%; text-align: center; box-sizing: border-box; padding: 0 10px; }
+    /* 단계 이동 / 액션 바 */
+    .nav-row, .action-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: sans-serif; line-height: 1.4; margin: 6px 0 14px; }
+    .action-bar { background: rgba(255,255,255,0.85); border: 1px dashed #93c5fd; border-radius: 10px; padding: 12px 14px; margin-top: 26px; }
+    .action-bar .muted, .nav-row .muted { font-size: 14px; }
+    .action-msg { font-family: sans-serif; font-size: 14px; line-height: 1.6; min-height: 8px; }
+    .nav-row label { font-size: 13px; color: #374151; }
+    .bank-bar { display: flex; gap: 8px; flex-wrap: wrap; font-family: sans-serif; margin: 8px 0 12px; }
+    .bank-bar input, .bank-bar select { padding: 9px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-family: inherit; }
+    .bank-bar input { flex: 1; min-width: 200px; }
+    .bank-card { font-family: sans-serif; background: rgba(255,255,255,0.92); border: 1px solid #e5e7eb; border-left: 6px solid #3b82f6; border-radius: 10px; padding: 12px 14px; margin: 0 0 10px; cursor: pointer; line-height: 1.5; }
+    .bank-card:hover { background: #eff6ff; }
+    .bank-card .bk-title { font-size: 17px; font-weight: bold; color: #1f2937; }
+    .bank-card .bk-meta { font-size: 13px; color: #6b7280; margin-top: 2px; }
+    .bank-card .bk-prev { font-size: 14px; color: #374151; margin-top: 4px; }
+    .bank-card .bk-chip { display: inline-block; background: #e0e7ff; color: #3730a3; border-radius: 999px; padding: 1px 9px; font-size: 12px; margin-right: 4px; }
+    .bank-card .bk-chip.ok { background: #dcfce7; color: #166534; }
+    .print-answers { display: none; }
+    .ans-mark { color: #1d4ed8; font-weight: bold; border-bottom: 2px solid #93c5fd; padding: 0 2px; }
+    .print-head { display: none; }
+    /* PDF(인쇄) 저장용 */
+    @media print {
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 12mm; }
+      body { background: #fff; padding: 0; display: block; }
+      .control-panel, .disclaimer, .no-print, .check-btn, .report-btn, #timing-line, .exam-save, details.exam-sol, .tab-container, #loading-spinner, #setup-box { display: none !important; }
+      .notebook-paper { width: auto; max-width: none; min-height: 0; background: #fff; background-image: none; border-left: none; box-shadow: none; padding: 0; }
+      body.pr-main #view-blank, body.pr-main #view-variants { display: none !important; }
+      body.pr-blank #content, body.pr-blank #view-variants { display: none !important; }
+      body.pr-variants #content, body.pr-variants #view-blank { display: none !important; }
+      .print-head { display: block; font-family: sans-serif; font-size: 12px; color: #6b7280; border-bottom: 1px solid #d1d5db; margin-bottom: 8px; padding-bottom: 4px; }
+      .step-card, .case-container, .exam-wrap, .quiz-item, .problem-box, .pa-row { break-inside: avoid; page-break-inside: avoid; }
+      .section-title { break-after: avoid; }
+      .sim-pane { display: block !important; break-after: page; page-break-after: always; }
+      .sim-pane:last-child { break-after: auto; page-break-after: auto; }
+      .with-answers .print-answers { display: block; break-before: page; page-break-before: always; font-family: sans-serif; font-size: 14px; line-height: 1.7; }
+      .print-answers .ans-item { break-inside: avoid; margin: 0 0 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="control-panel">
+    <div id="setup-box" style="display:none; border:1px dashed #f59e0b; background:#fffbeb; border-radius:8px; padding:10px 12px;">
+      <div class="muted" style="color:#92400e; margin-bottom:6px;">🔧 처음 한 번만: Supabase의 <b>anon(publishable) 키</b>를 붙여넣고 [저장]을 눌러주세요. (이 브라우저에만 저장돼요)</div>
+      <div class="auth-row">
+        <input type="password" id="setup-key" placeholder="anon public key (eyJ... 또는 sb_publishable_...)" style="flex:1; min-width:240px;">
+        <button type="button" class="btn" id="setup-save">저장</button>
+      </div>
+    </div>
+    <div id="auth-out" class="auth-row">
+      <input type="text" id="auth-email" placeholder="이메일" autocomplete="username" style="flex:1; min-width:180px;">
+      <input type="password" id="auth-pass" placeholder="비밀번호 (6자 이상)" autocomplete="current-password" style="flex:1; min-width:160px;">
+      <button type="button" class="btn" id="auth-login">로그인</button>
+      <button type="button" class="btn btn-sub" id="auth-signup">회원가입</button>
+    </div>
+    <div id="auth-in" class="auth-row" style="display:none;">
+      <span id="auth-email-label" class="muted"></span>
+      <span id="quota-badge"></span>
+      <button type="button" class="btn btn-sub" id="auth-logout" style="margin-left:auto;">로그아웃</button>
+    </div>
+    <div id="auth-msg" class="muted" style="white-space:pre-wrap;"></div>
+
+    <div id="gkey-box" style="border:1px solid #d1d5db; background:#f9fafb; border-radius:8px; padding:10px 12px;">
+      <div id="gkey-set" style="display:none;" class="auth-row">
+        <span class="muted">🔑 내 Gemini 키: <b id="gkey-mask"></b> <span id="gkey-where"></span></span>
+        <button type="button" class="btn btn-sub" id="gkey-change" style="margin-left:auto;">변경</button>
+        <button type="button" class="btn btn-sub" id="gkey-forget">삭제</button>
+      </div>
+      <div id="gkey-form">
+        <div class="muted" style="margin-bottom:6px;">🔑 AI 분석·출제에는 <b>내 Gemini API 키</b>가 필요해요 (처음 한 번만 입력). <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio에서 무료로 발급</a></div>
+        <div class="auth-row">
+          <input type="password" id="gkey-input" placeholder="Gemini API 키 (AIza...)" autocomplete="off" spellcheck="false" style="flex:1; min-width:240px;">
+          <button type="button" class="btn" id="gkey-save">확인 후 사용</button>
+        </div>
+        <label class="muted" style="display:block; margin-top:6px;"><input type="checkbox" id="gkey-remember" checked> 이 브라우저에 기억하기 <span style="color:#9ca3af;">(공용 PC라면 체크 해제)</span></label>
+        <div class="muted" style="margin-top:4px; font-size:12px; color:#6b7280;">키는 서버 DB에 저장되지 않고, 이 브라우저(IndexedDB)에만 보관돼요. 요청할 때 AI 호출에만 잠깐 사용되고 서버 로그에도 남기지 않아요. 사용 비용·한도는 내 Google 계정 기준이에요.</div>
+      </div>
+      <div class="auth-row" style="margin-top:8px;">
+        <label class="muted" for="gmodel-input">🤖 사용할 모델</label>
+        <select id="gmodel-select" style="flex:1; min-width:200px; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:14px;">
+          <option value="gemini-3.8-flash">gemini-3.8-flash (기본)</option>
+        </select>
+        <input type="text" id="gmodel-input" autocomplete="off" spellcheck="false" style="display:none; flex:1; min-width:200px;" placeholder="모델 이름 직접 입력 (예: gemini-3.8-flash)">
+      </div>
+      <div class="muted" style="font-size:12px; color:#6b7280; margin-top:2px;">키를 확인하면 내 키로 쓸 수 있는 모델이 목록에 채워지고, 추천 모델이 자동으로 선택돼요. 마음에 드는 모델로 바꿔도 돼요. (‘유료’ 모델은 내 Google 계정에 결제가 설정돼 있어야 할 수 있어요)</div>
+      <div id="gkey-msg" class="muted" style="white-space:pre-wrap; margin-top:4px;"></div>
+    </div>
+
+    <div class="input-group">
+      <input type="file" id="image-upload" accept="image/*,.jfif,.jpg,.jpeg,.png,.webp">
+      <button type="button" class="btn" id="analyze-btn">AI 분석 시작하기</button>
+    </div>
+
+    <details class="panel" id="gen-panel">
+      <summary>📝 사진 없이 문제 출제하기</summary>
+      <div class="input-group" style="align-items:flex-start;">
+        <textarea id="gen-request" rows="2" style="flex:1; min-width:260px;" placeholder="예) 미분 단원, 접선 활용 4점 킬러 문제 / 수열의 극한 단답형 / 확률 조건부확률 준킬러"></textarea>
+        <select id="gen-count">
+          <option value="1">1문제</option>
+          <option value="2">2문제</option>
+          <option value="3" selected>3문제</option>
+          <option value="5">5문제</option>
+        </select>
+        <button type="button" class="btn" id="gen-btn">출제하기</button>
+      </div>
+    </details>
+
+    <div class="input-group">
+      <button type="button" class="btn" id="bank-open-btn">📚 문제은행 (저장된 풀이 바로 보기)</button>
+      <button type="button" class="btn btn-sub" id="db-open-btn">🗂️ 학습 DB 둘러보기 (로그인 없이 볼 수 있어요)</button>
+      <span class="muted" id="notes-badge"></span>
+    </div>
+
+    <div id="loading-spinner"></div>
+  </div>
+
+  <div class="notebook-paper">
+    <div id="content">
+      <div style="text-align:center; color:#6b7280; margin-top:90px; line-height:1.7;">
+        문제 사진을 올리고 <b>'AI 분석 시작하기'</b>를 눌러보세요.<br>
+        그래프가 있는 단계별 풀이, 빈칸 훈련, 수능형 변형 문제까지 만들어 줘요.<br>
+        <span style="font-size:20px;">(사이트는 무료예요. AI 사용에는 본인의 Gemini API 키가 필요해요.)</span>
+      </div>
+    </div>
+    <div id="view-blank" style="display:none;"></div>
+    <div id="view-variants" style="display:none;"></div>
+  </div>
+
+  <div class="disclaimer">
+    ⚠️ AI가 만든 해설과 문제는 <b>틀릴 수 있어요.</b> 중요한 내용은 교재나 선생님과 꼭 함께 확인하세요. 잘못된 부분은 결과 아래의 [신고] 버튼으로 알려주세요.<br>
+    🔑 내 Gemini API 키는 서버 DB에 저장되지 않아요. ‘기억하기’를 선택한 경우에만 이 브라우저에 보관되며, 언제든 [삭제]할 수 있어요.<br>
+    이 사이트의 학습 자료는 제작자의 허락을 받아 사용하고 있으며, 제공자는 DB 화면에 표기됩니다.
+  </div>
+
+  <script>
+    // =====================================================================
+    //  사이트 설정 — 관리자가 한 번만 채우면 됩니다
+    //  (anon / publishable 키는 공개되어도 안전한 키예요. service_role/secret 키는 절대 넣지 마세요)
+    // =====================================================================
+    var SUPABASE_URL = 'https://xmcbkezfoxczpscsbwqp.supabase.co';
+    var SUPABASE_ANON_KEY = 'PASTE_ANON_KEY_HERE';
+    var AI_FUNCTION_NAME = 'swift-service';   // Supabase에 배포한 Edge Function 이름 (Functions 목록에 보이는 이름과 같아야 해요)
+    // 위 키를 파일에 직접 넣지 않았다면, 화면에서 한 번 입력한 키(이 브라우저에 저장)를 사용해요.
+    var KEY_STORE = 'math_student_anon_key';
+    try { if (SUPABASE_ANON_KEY.indexOf('PASTE_') === 0) { var _k = localStorage.getItem(KEY_STORE); if (_k) SUPABASE_ANON_KEY = _k; } } catch (e) { /* 무시 */ }
+
+    // =====================================================================
+    //  공통 유틸
+    // =====================================================================
+    var globalAiData = null;
+    var graphSpecs = {};
+    var graphSeq = 0;
+    var examSeq = 0;
+    var busyTimer = null;
+
+    function $(id) { return document.getElementById(id); }
+    function safeGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+    function safeSet(key, val) { try { localStorage.setItem(key, val); } catch (e) { /* 무시 */ } }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // 텍스트 → 안전한 HTML (색 강조, 구간함수, 분수, 지수/첨자 처리)
+    function fmt(s) {
+      var t = esc(s);
+      t = t.replace(/\[\[cases:([\s\S]*?)\]\]/g, function (m, body) {
+        var parts = body.split('|');
+        var label = parts.shift();
+        var rows = parts.map(function (r) { return '<div>' + r.trim() + '</div>'; }).join('');
+        var brace = '<svg class="cases-brace" viewBox="0 0 10 100" preserveAspectRatio="none"><path d="M10 0 C4 0 5 10 5 25 C5 40 5 45 0 50 C5 55 5 60 5 75 C5 90 4 100 10 100" fill="none" stroke="currentColor" stroke-width="1.3" vector-effect="non-scaling-stroke"/></svg>';
+        return '<span class="cases"><span>' + label + '</span>' + brace + '<span class="cases-rows">' + rows + '</span></span>';
+      });
+      t = t.replace(/&lt;=/g, '≤').replace(/&gt;=/g, '≥').replace(/!=/g, '≠').replace(/-&gt;/g, '→');
+      t = t.replace(/sqrt\(/g, '√(');
+      t = t.replace(/frac\(([^(),]+),([^(),]+)\)/g, '<span class="frac"><span>$1</span><span>$2</span></span>');
+      t = t.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>').replace(/\^(-?[0-9]+|[a-zA-Z])/g, '<sup>$1</sup>');
+      t = t.replace(/_\{([^}]+)\}/g, '<sub>$1</sub>').replace(/_([0-9a-zA-Z])/g, '<sub>$1</sub>');
+      t = t.replace(/\[\[r:([\s\S]*?)\]\]/g, '<span class="mk-r">$1</span>');
+      t = t.replace(/\[\[b:([\s\S]*?)\]\]/g, '<span class="mk-b">$1</span>');
+      t = t.replace(/\[\[h:([\s\S]*?)\]\]/g, '<span class="mk-h">$1</span>');
+      return t.replace(/\n/g, '<br>');
+    }
+
+    function guessMime(file) {
+      var t = (file.type || '').toLowerCase();
+      if (t === 'image/jpeg' || t === 'image/png' || t === 'image/webp' || t === 'image/heic' || t === 'image/heif') return t;
+      var n = (file.name || '').toLowerCase();
+      if (/\.png$/.test(n)) return 'image/png';
+      if (/\.webp$/.test(n)) return 'image/webp';
+      return 'image/jpeg';
+    }
+
+    function fileToBase64(file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
+        reader.onerror = function () { reject(new Error('파일을 읽지 못했습니다: ' + file.name)); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 이미지: 너무 크면 줄여서 전송 속도와 안정성을 높이고, 화면 표시에도 같은 이미지를 사용
+    function prepareImage(file) {
+      return new Promise(function (resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        function fallback() {
+          fileToBase64(file).then(function (b64) {
+            var mime = guessMime(file);
+            resolve({ dataUrl: 'data:' + mime + ';base64,' + b64, mime: mime, b64: b64 });
+          }).catch(reject);
+        }
+        img.onload = function () {
+          try {
+            var max = 1600;
+            var s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+            var w = Math.max(1, Math.round(img.naturalWidth * s));
+            var h = Math.max(1, Math.round(img.naturalHeight * s));
+            var c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            var d = c.toDataURL('image/jpeg', 0.85);
+            URL.revokeObjectURL(url);
+            resolve({ dataUrl: d, mime: 'image/jpeg', b64: d.split(',')[1] });
+          } catch (e) { URL.revokeObjectURL(url); fallback(); }
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); fallback(); };
+        img.src = url;
+      });
+    }
+
+    function setBusy(on, msg) {
+      ['analyze-btn', 'learn-btn', 'gen-btn'].forEach(function (id) { var b = $(id); if (b) b.disabled = on; });
+      var sp = $('loading-spinner');
+      if (busyTimer) { clearInterval(busyTimer); busyTimer = null; }
+      if (on) {
+        var t0 = Date.now();
+        sp.style.display = 'block';
+        sp.textContent = '✨ ' + msg + ' (0초)';
+        busyTimer = setInterval(function () {
+          sp.textContent = '✨ ' + msg + ' (' + Math.round((Date.now() - t0) / 1000) + '초 경과)';
+        }, 1000);
+      } else {
+        sp.style.display = 'none';
+      }
+    }
+
+    function showError(err) {
+      $('content').innerHTML = '<div style="background-color:#fee2e2; border: 2px solid red; padding: 20px; border-radius:10px; color:red; font-family: sans-serif; font-size:16px; line-height:1.6;">' +
+        '🚨 오류가 발생했습니다.<br><br>' +
+        '<strong>상세 오류:</strong> ' + esc(err && err.message ? err.message : err) + '<br><br>' +
+        '<span style="color:#7f1d1d">※ 문제가 계속되면 잠시 후 다시 시도해 주세요.</span></div>';
+    }
+
+    function getText(data) {
+      if (data.promptFeedback && data.promptFeedback.blockReason) {
+        throw new Error('요청이 차단되었습니다: ' + data.promptFeedback.blockReason);
+      }
+      if (!data.candidates || !data.candidates.length || !data.candidates[0].content) {
+        var fr = data.candidates && data.candidates[0] ? data.candidates[0].finishReason : '알 수 없음';
+        throw new Error('모델이 내용을 반환하지 않았습니다 (finishReason: ' + fr + ')');
+      }
+      var parts = data.candidates[0].content.parts || [];
+      var text = parts.filter(function (p) { return !p.thought && typeof p.text === 'string'; })
+                      .map(function (p) { return p.text; }).join('');
+      var fr2 = data.candidates[0].finishReason;
+      return { text: text, truncated: fr2 === 'MAX_TOKENS' };
+    }
+
+    function extractJson(res) {
+      var t = String(res.text).replace(/^\s*```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+      var s = t.indexOf('{');
+      var e = t.lastIndexOf('}');
+      if (s === -1 || e === -1 || e < s) {
+        throw new Error('응답에서 JSON을 찾지 못했습니다.' + (res.truncated ? ' (답변이 너무 길어 중간에 잘렸어요. 다시 시도해 주세요.)' : ' 원문: ' + t.slice(0, 300)));
+      }
+      try { return JSON.parse(t.slice(s, e + 1)); }
+      catch (err) {
+        throw new Error('JSON 해석 실패: ' + err.message + (res.truncated ? ' (답변이 너무 길어 중간에 잘렸어요. 다시 시도해 주세요.)' : ''));
+      }
+    }
+
+    // =====================================================================
+    //  로그인 / 서버 호출 / 공개 학습 DB
+    // =====================================================================
+    var SESSION_KEY = 'math_student_session';
+    var S = { access: '', refresh: '', email: '', admin: false, remaining: null, limit: null };
+    var notesCache = [];
+
+    function cfgOk() { return SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY.indexOf('PASTE_') !== 0; }
+    function authMsg(t) { $('auth-msg').textContent = t || ''; }
+    function saveSession() { safeSet(SESSION_KEY, JSON.stringify({ refresh: S.refresh, email: S.email })); }
+
+    function renderAuth() {
+      var inn = !!S.access;
+      $('auth-out').style.display = inn ? 'none' : 'flex';
+      $('auth-in').style.display = inn ? 'flex' : 'none';
+      $('auth-email-label').textContent = inn ? ('👤 ' + S.email) : '';
+      var q = '';
+      if (inn) {
+        if (S.admin) q = '관리자 · 횟수 제한 없음';
+        else if (S.remaining != null) q = '오늘 남은 사용 횟수 ' + S.remaining + ' / ' + S.limit;
+      }
+      $('quota-badge').textContent = q;
+    }
+
+    async function authCall(path, body) {
+      var r = await fetch(SUPABASE_URL + '/auth/v1/' + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify(body)
+      });
+      var d = {};
+      try { d = await r.json(); } catch (e) { /* 무시 */ }
+      if (!r.ok) throw new Error(d.error_description || d.msg || d.message || ('HTTP ' + r.status));
+      return d;
+    }
+
+    function friendlyAuthError(m) {
+      m = String(m || '');
+      if (/Invalid login credentials/i.test(m)) return '이메일 또는 비밀번호가 맞지 않아요. (처음이라면 [회원가입]을 먼저 눌러주세요)';
+      if (/Email not confirmed/i.test(m)) return '이메일 확인이 아직이에요. 메일함(스팸함 포함)의 확인 링크를 눌러주세요.';
+      if (/already registered|already been registered/i.test(m)) return '이미 가입된 이메일이에요. [로그인]을 눌러주세요.';
+      if (/rate limit|too many/i.test(m)) return '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.';
+      if (/Password should be/i.test(m)) return '비밀번호는 6자 이상이어야 해요.';
+      return m;
+    }
+
+    var refreshing = null;   // 동시에 여러 요청이 401을 받아도 갱신은 한 번만
+    function refreshSession() {
+      if (!refreshing) refreshing = refreshSessionOnce().then(function (v) { refreshing = null; return v; }, function (e) { refreshing = null; throw e; });
+      return refreshing;
+    }
+    async function refreshSessionOnce() {
+      if (!S.refresh) throw new Error('다시 로그인해 주세요.');
+      try {
+        var d = await authCall('token?grant_type=refresh_token', { refresh_token: S.refresh });
+        S.access = d.access_token; S.refresh = d.refresh_token || S.refresh; saveSession();
+      } catch (e) {
+        S.access = ''; S.refresh = ''; saveSession(); renderAuth();
+        throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.');
+      }
+    }
+
+    async function doLogin(signup) {
+      if (!cfgOk()) { authMsg('사이트 설정이 아직 끝나지 않았어요. (관리자: index.html 맨 위의 SUPABASE_ANON_KEY를 채워주세요)'); return; }
+      var email = $('auth-email').value.trim(), pass = $('auth-pass').value;
+      if (!email || pass.length < 6) { authMsg('이메일과 6자 이상의 비밀번호를 입력해 주세요.'); return; }
+      authMsg(signup ? '가입 중...' : '로그인 중...');
+      try {
+        var d;
+        if (signup) {
+          d = await authCall('signup', { email: email, password: pass });
+          if (!d.access_token) { S.email = email; authMsg('가입 요청 완료! 메일함(스팸함 포함)의 확인 링크를 누른 뒤 [로그인]을 눌러주세요.'); return; }
+        } else {
+          d = await authCall('token?grant_type=password', { email: email, password: pass });
+        }
+        S.access = d.access_token; S.refresh = d.refresh_token; S.email = email; saveSession();
+        $('auth-pass').value = '';
+        authMsg('');
+        renderAuth();
+        fetchQuota();
+      } catch (e) { authMsg('❌ ' + friendlyAuthError(e && e.message)); }
+    }
+
+    function doLogout() {
+      S.access = ''; S.refresh = ''; S.admin = false; S.remaining = null; saveSession(); renderAuth(); authMsg('로그아웃했어요.');
+    }
+
+    async function fetchQuota() {
+      try { await callServer('quota', {}); } catch (e) { /* 조용히 무시 */ }
+    }
+
+    // AI 서버 함수 호출 (수학 프롬프트와 학습 노트는 서버에서 결합, Gemini 키는 사용자 본인 것을 헤더로 전달)
+    async function callServer(mode, payload) {
+      if (!cfgOk()) throw new Error('사이트 설정이 아직 끝나지 않았어요.');
+      if (!S.access) throw new Error('먼저 로그인해 주세요.');
+      var needKey = (mode !== 'quota');
+      if (needKey && !G.key) { openKeyForm('AI를 쓰려면 먼저 내 Gemini API 키를 입력해 주세요.'); throw new Error('내 Gemini API 키를 먼저 입력해 주세요.'); }
+      function go() {
+        var h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + S.access };
+        if (needKey) h['x-gemini-key'] = G.key;
+        return fetch(SUPABASE_URL + '/functions/v1/' + encodeURIComponent(AI_FUNCTION_NAME), {
+          method: 'POST',
+          headers: h,
+          body: JSON.stringify(Object.assign({ mode: mode }, needKey ? { model: getModel() } : {}, payload || {}))
+        });
+      }
+      var r = await go();
+      if (r.status === 401) { try { await refreshSession(); r = await go(); } catch (e) { throw new Error('로그인이 만료됐어요. 다시 로그인해 주세요.'); } }
+      var raw = await r.text(), d;
+      try { d = JSON.parse(raw); } catch (e) { throw new Error('서버 응답을 읽지 못했어요 (HTTP ' + r.status + ')'); }
+      if (d && d._quota) {
+        S.remaining = d._quota.remaining; S.limit = d._quota.limit;
+        if (d.admin === true) S.admin = true;
+        renderAuth();
+      }
+      if (!r.ok) {
+        if (d && (d.error === 'gemini_key_invalid' || d.error === 'gemini_key_required')) {
+          forgetKey(true);
+          openKeyForm('입력한 Gemini 키를 사용할 수 없어요. 새 키를 입력해 주세요.');
+        }
+        if (r.status === 546 || /compute resources|WORKER_LIMIT|timed? ?out/i.test(String(d.message || ''))) {
+          throw new Error('서버가 이 요청을 끝까지 처리하지 못했어요 (시간·자원 초과). 사진을 더 작게/선명하게 해서 다시 시도해 주세요. 계속되면 더 빠른 모델(예: flash)을 골라 주세요.');
+        }
+        throw new Error(d.message || d.error || ('HTTP ' + r.status));
+      }
+      return d;
+    }
+
+    // ---- 내 Gemini 키: 메모리 + (선택 시) 이 브라우저의 IndexedDB 에만 보관 ----
+    var G = { key: '', stored: false };
+    var MODEL_STORE = 'math_student_model', DEFAULT_MODEL = 'gemini-3.8-flash';
+    var MODEL_RE_C = /^gemini-[a-z0-9][a-z0-9.\-]{0,60}$/;
+    var CUSTOM = '__custom__';
+    function getModel() {
+      var sel = $('gmodel-select'), v = (sel && sel.value) || '';
+      if (v === CUSTOM) v = (($('gmodel-input') && $('gmodel-input').value) || '').trim().replace(/^models\//, '');
+      if (!MODEL_RE_C.test(v)) v = DEFAULT_MODEL;
+      return v;
+    }
+    function verNum(id) { var m = /^gemini-(\d+(?:\.\d+)?)/.exec(id); return m ? parseFloat(m[1]) : 0; }
+    // 모델 목록에서 보여줄 것만 고르기 (글쓰기·풀이용 모델)
+    function usableModels(models) {
+      return (models || []).filter(function (m) {
+        var id = (m.name || '').replace(/^models\//, '');
+        return /^gemini-/.test(id) && (!m.supportedGenerationMethods || m.supportedGenerationMethods.indexOf('generateContent') >= 0) &&
+          !/tts|image|embedding|live|audio|decision|robotics|computer-use|aqa|native|veo|imagen/i.test(id);
+      }).map(function (m) { var id = m.name.replace(/^models\//, ''); return { id: id, label: m.displayName || id }; });
+    }
+    // 추천: 가장 새로운 일반 'flash' (빠르고 저렴). 없으면 가장 새로운 모델
+    function pickRecommended(list) {
+      var flash = list.filter(function (x) { return /-flash$/.test(x.id); }).sort(function (a, b) { return verNum(b.id) - verNum(a.id); });
+      if (flash.length) return flash[0].id;
+      var all = list.slice().sort(function (a, b) { return verNum(b.id) - verNum(a.id); });
+      return all.length ? all[0].id : DEFAULT_MODEL;
+    }
+    function fillModels(list) {
+      var sel = $('gmodel-select'); if (!sel || !list.length) return;
+      var rec = pickRecommended(list), saved = safeGet(MODEL_STORE);
+      var chosen = (saved && list.some(function (x) { return x.id === saved; })) ? saved : rec;
+      list.sort(function (a, b) { return verNum(b.id) - verNum(a.id) || (a.id < b.id ? -1 : 1); });
+      sel.innerHTML = list.map(function (x) {
+        return '<option value="' + esc(x.id) + '">' + esc(x.label + ' (' + x.id + ')' + (x.id === rec ? ' ⭐ 추천' : '')) + '</option>';
+      }).join('') + '<option value="' + CUSTOM + '">직접 입력…</option>';
+      sel.value = chosen;
+      safeSet(MODEL_STORE, chosen);
+    }
+    var IDB_NAME = 'math_student_keys', IDB_STORE = 'kv', IDB_ID = 'gemini';
+    function idbOpen() {
+      return new Promise(function (res, rej) {
+        try {
+          if (!window.indexedDB) { rej(new Error('no idb')); return; }
+          var q = indexedDB.open(IDB_NAME, 1);
+          q.onupgradeneeded = function () { q.result.createObjectStore(IDB_STORE); };
+          q.onsuccess = function () { res(q.result); };
+          q.onerror = function () { rej(q.error || new Error('idb error')); };
+        } catch (e) { rej(e); }
+      });
+    }
+    function idbDo(kind, val) {
+      return idbOpen().then(function (db) {
+        return new Promise(function (res, rej) {
+          var tx = db.transaction(IDB_STORE, kind === 'get' ? 'readonly' : 'readwrite');
+          var st = tx.objectStore(IDB_STORE), rq;
+          if (kind === 'get') rq = st.get(IDB_ID);
+          else if (kind === 'set') rq = st.put(val, IDB_ID);
+          else rq = st.delete(IDB_ID);
+          tx.oncomplete = function () { try { db.close(); } catch (e) { /* 무시 */ } res(kind === 'get' ? rq.result : true); };
+          tx.onerror = tx.onabort = function () { try { db.close(); } catch (e) { /* 무시 */ } rej(tx.error || new Error('idb tx')); };
+        });
+      });
+    }
+    function keyMsg(t) { $('gkey-msg').textContent = t || ''; }
+    function maskKey(k) { return k.length > 8 ? k.slice(0, 4) + '…' + k.slice(-4) : '••••'; }
+    function renderKey() {
+      var has = !!G.key;
+      $('gkey-set').style.display = has ? 'flex' : 'none';
+      $('gkey-form').style.display = has ? 'none' : 'block';
+      $('gkey-mask').textContent = has ? maskKey(G.key) : '';
+      $('gkey-where').textContent = has ? (G.stored ? '(이 브라우저에 기억됨)' : '(이번 접속에서만 사용)') : '';
+    }
+    function openKeyForm(msg) { $('gkey-set').style.display = 'none'; $('gkey-form').style.display = 'block'; keyMsg(msg || ''); try { $('gkey-input').focus(); } catch (e) { /* 무시 */ } }
+    function forgetKey(silent) {
+      G.key = ''; G.stored = false;
+      idbDo('del').catch(function () { /* 무시 */ });
+      renderKey();
+      if (!silent) keyMsg('키를 이 브라우저에서 삭제했어요.');
+    }
+    // 키가 실제로 유효한지 Gemini 에 직접 확인 (이 확인은 브라우저 ↔ Google 사이에서만 일어나요)
+    async function verifyKey(k) {
+      try {
+        var r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': k } });
+        if (r.ok) {
+          try {
+            var j = await r.json();
+            fillModels(usableModels(j.models));
+          } catch (e) { /* 목록을 못 읽어도 키는 유효 */ }
+          return 'ok';
+        }
+        if (r.status === 400 || r.status === 401 || r.status === 403) return 'bad';
+        return 'unknown';
+      } catch (e) { return 'unknown'; }
+    }
+    async function saveKey() {
+      var k = $('gkey-input').value.trim();
+      if (!/^[A-Za-z0-9_.\-]{20,200}$/.test(k)) { keyMsg('키 형식이 올바르지 않아요. AIza... 로 시작하는 키를 그대로 붙여넣어 주세요.'); return; }
+      keyMsg('키를 확인하는 중...');
+      var v = await verifyKey(k);
+      if (v === 'bad') { keyMsg('❌ Google이 이 키를 받아주지 않아요. 키를 다시 확인해 주세요.'); return; }
+      G.key = k;
+      var remember = $('gkey-remember').checked;
+      G.stored = false;
+      if (remember) {
+        try { await idbDo('set', k); G.stored = true; } catch (e) { G.stored = false; }
+      } else {
+        idbDo('del').catch(function () { /* 무시 */ });
+      }
+      $('gkey-input').value = '';
+      safeSet(MODEL_STORE, getModel());
+      renderKey();
+      keyMsg((v === 'ok' ? '✅ 키가 확인됐어요. ' : '⚠️ 지금은 키를 확인하지 못했지만 일단 사용해 볼게요. ') +
+        (remember ? (G.stored ? '이 브라우저에 기억했어요.' : '(이 브라우저는 저장을 지원하지 않아 이번 접속에서만 사용해요.)') : '이번 접속에서만 사용해요.'));
+    }
+    async function loadStoredKey() {
+      try {
+        var k = await idbDo('get');
+        if (typeof k === 'string' && k) { G.key = k; G.stored = true; }
+      } catch (e) { /* IndexedDB 미지원/차단: 이번 접속에서만 입력 */ }
+      renderKey();
+    }
+
+    // 공개된 학습 자료(제작자 허락을 받은 것)만 로그인 없이 읽음
+    async function loadKb() {
+      if (!cfgOk()) return;
+      try {
+        var r = await fetch(SUPABASE_URL + '/rest/v1/kb_public?select=id,credit,notes,added_at&order=added_at.asc', { headers: { 'apikey': SUPABASE_ANON_KEY } });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var rows = await r.json();
+        notesCache = rows.map(function (x) { return { id: x.id, name: x.credit || '자료', credit: x.credit, enabled: true, notes: x.notes }; });
+        var seen = {}, credits = [];
+        notesCache.forEach(function (n) { if (n.credit && !seen[n.credit]) { seen[n.credit] = 1; credits.push(n.credit); } });
+        $('notes-badge').textContent = notesCache.length ? ('📚 학습 자료 ' + notesCache.length + '개 · 제공: ' + credits.join(', ')) : '';
+      } catch (e) { notesCache = []; $('notes-badge').textContent = ''; }
+    }
+
+    async function sendReport() {
+      if (!lastReport) return;
+      if (!S.access) { alert('신고하려면 로그인이 필요해요.'); return; }
+      var note = prompt('어떤 부분이 틀렸나요? (간단히 적어주세요)', '');
+      if (note === null) return;
+      try {
+        async function post() {
+          return fetch(SUPABASE_URL + '/rest/v1/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + S.access, 'Prefer': 'return=minimal' },
+            body: JSON.stringify({ kind: lastReport.kind, note: String(note).slice(0, 1500), payload: lastReport.payload })
+          });
+        }
+        var r = await post();
+        if (r.status === 401) { await refreshSession(); r = await post(); }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        alert('신고가 접수됐어요. 알려줘서 고마워요!');
+      } catch (e) { alert('신고 전송에 실패했어요: ' + (e && e.message ? e.message : e)); }
+    }
+
+    // 노트 한 개를 항목별 배열로 (새 형식과 예전 형식 모두 지원)
+    function noteParts(n) {
+      var o = (n && n.notes) || {};
+      return {
+        skills: o.skills || o.key_skills || [],
+        relations: o.relations || [],
+        donts: o.donts || [],
+        dos: o.dos || [],
+        bank: o.problem_bank || o.representative_problems || [],
+        style: o.style_notes || '',
+        patterns: o.problem_patterns || []
+      };
+    }
+    function dbHit(item, q) { return !q || JSON.stringify(item).toLowerCase().indexOf(q) !== -1; }
+    function dbLine(icon, label, val) { return val ? '<div>' + icon + ' <b>' + label + '</b> ' + fmt(val) + '</div>' : ''; }
+
+    function renderDbResults(q) {
+      q = String(q || '').trim().toLowerCase();
+      graphSpecs = {}; graphSeq = 0;
+      var cnt = { s: 0, r: 0, t: 0, b: 0 };
+      var sk = '', rl = '', tp = '', bk = '', st = '';
+      notesCache.forEach(function (n) {
+        var p = noteParts(n);
+        var src = '<span class="db-src">' + esc(n.name) + '</span>';
+        p.skills.forEach(function (s) {
+          if (!s || !dbHit(s, q)) return;
+          cnt.s++;
+          sk += '<div class="db-card"><div class="db-title">' + fmt(s.name) + (s.unit ? '<span class="db-tag">' + esc(s.unit) + '</span>' : '') + src + '</div>' +
+                dbLine('🔎', '언제', s.when) + dbLine('⚡', '요령', s.how) + dbLine('📐', '공식', s.formula) + dbLine('⚠️', '주의', s.caution || s.ex) + graphBox(s.graph) + '</div>';
+        });
+        p.relations.forEach(function (r) {
+          if (!r || !dbHit(r, q)) return;
+          cnt.r++;
+          rl += '<div class="db-card rel"><div class="db-title">' + fmt(r.name) + src + '</div>' + (r.statement ? '<div>' + fmt(r.statement) + '</div>' : '') + graphBox(r.graph) + '</div>';
+        });
+        p.donts.forEach(function (d) { if (!dbHit(d, q)) return; cnt.t++; tp += '<div class="db-card dont">🚫 ' + fmt(typeof d === 'string' ? d : JSON.stringify(d)) + src + '</div>'; });
+        p.dos.forEach(function (d) { if (!dbHit(d, q)) return; cnt.t++; tp += '<div class="db-card do">✅ ' + fmt(typeof d === 'string' ? d : JSON.stringify(d)) + src + '</div>'; });
+        p.bank.forEach(function (b) {
+          if (!b || !dbHit(b, q)) return;
+          cnt.b++;
+          var tags = [b.no ? b.no + '번' : '', b.unit || '', b.points ? b.points + '점' : '', b.kind || '', b.difficulty || ''].filter(Boolean).map(function (t) { return '<span class="db-tag">' + esc(t) + '</span>'; }).join('');
+          bk += '<div class="db-card bank"><div class="db-title">' + fmt(b.summary || '') + tags + src + '</div>' +
+                dbLine('💡', '핵심 아이디어', b.idea || b.trick) + dbLine('⚠️', '함정', b.trap) + '</div>';
+        });
+        if (p.style && dbHit(p.style, q)) { st += '<div class="db-card">' + fmt(p.style) + src + '</div>'; }
+      });
+      var h = '<div class="db-count">기법 ' + cnt.s + ' · 관계 ' + cnt.r + ' · 하지마/꼭해 ' + cnt.t + ' · 문제은행 ' + cnt.b + (q ? ' (검색 결과)' : '') + '</div>';
+      if (sk) h += '<div class="section-title" style="font-size:28px;">🧩 기법 카드</div><br>' + sk;
+      if (rl) h += '<div class="section-title" style="font-size:28px;">📐 비율·넓이 관계</div><br>' + rl;
+      if (tp) h += '<div class="section-title" style="font-size:28px;">🚦 하지 마 / 꼭 해</div><br>' + tp;
+      if (bk) h += '<div class="section-title" style="font-size:28px;">🗃️ 문제은행</div><br>' + bk;
+      if (st) h += '<div class="section-title" style="font-size:28px;">🎯 출제 스타일</div><br>' + st;
+      if (!sk && !rl && !tp && !bk && !st) h += '<div style="color:#9ca3af; text-align:center; margin-top:40px;">검색 결과가 없어요.</div>';
+      $('db-results').innerHTML = h;
+      setTimeout(function () { drawPending($('db-results')); }, 60);
+    }
+
+    function openDb() {
+      curBankItem = null; showView('main', false);
+      if (!notesCache.length) {
+        $('content').innerHTML = '<div style="text-align:center; color:#9ca3af; margin-top:100px;">아직 공개된 학습 자료가 없어요.</div>';
+        return;
+      }
+      $('content').innerHTML = navHomeHtml() + '<div class="section-title">🗂️ 학습 DB</div>' +
+        '<input type="text" id="db-search" placeholder="검색 (예: 삼차함수, 넓이, 사잇값, 절댓값)">' +
+        '<div id="db-results"></div>';
+      renderDbResults('');
+    }
+
+    // =====================================================================
+    //  그래프 (function-plot + 열린/닫힌 점 표시)
+    // =====================================================================
+    var COLORS = { red: '#dc2626', blue: '#2563eb', green: '#16a34a', black: '#111827', gray: '#6b7280', orange: '#ea580c', purple: '#7c3aed' };
+
+    function pickColor(c) {
+      var k = String(c || '').toLowerCase();
+      if (COLORS[k]) return COLORS[k];
+      if (/^#[0-9a-f]{3,8}$/i.test(k)) return k;
+      return COLORS.blue;
+    }
+    function domainOf(a, d) {
+      if (a && a.length === 2 && isFinite(a[0]) && isFinite(a[1]) && Number(a[0]) < Number(a[1])) return [Number(a[0]), Number(a[1])];
+      return d;
+    }
+    function hasGraph(spec) {
+      return !!spec && typeof spec === 'object' && ((spec.curves && spec.curves.length) || (spec.points && spec.points.length));
+    }
+    function graphBox(spec) {
+      if (!hasGraph(spec)) return '';
+      var id = 'g' + (++graphSeq);
+      graphSpecs[id] = spec;
+      return '<div class="graph-wrap">' + (spec.title ? '<div class="graph-title">' + esc(spec.title) + '</div>' : '') +
+             '<div class="graph-box" data-gid="' + id + '"></div></div>';
+    }
+
+    function addMarkers(el, chart, spec, W, H, xd, yd) {
+      var layer = el.querySelector('g.canvas') || el.querySelector('g.content');
+      if (!layer) return;
+      var margin = { left: 30, right: 30, top: 20, bottom: 20 };
+      var iw = W - margin.left - margin.right, ih = H - margin.top - margin.bottom;
+      var xs = (chart && chart.meta && chart.meta.xScale) ? chart.meta.xScale : function (v) { return (v - xd[0]) / (xd[1] - xd[0]) * iw; };
+      var ys = (chart && chart.meta && chart.meta.yScale) ? chart.meta.yScale : function (v) { return ih - (v - yd[0]) / (yd[1] - yd[0]) * ih; };
+      var NS = 'http://www.w3.org/2000/svg';
+      (spec.points || []).forEach(function (p) {
+        var x = Number(p.x), y = Number(p.y);
+        if (!isFinite(x) || !isFinite(y)) return;
+        if (x < xd[0] || x > xd[1] || y < yd[0] || y > yd[1]) return;
+        var cx = xs(x), cy = ys(y);
+        if (layer.getAttribute('class') === 'canvas') { /* canvas 좌표계는 margin 안쪽에서 시작하므로 그대로 사용 */ }
+        var c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', 4.6);
+        c.setAttribute('fill', p.style === 'open' ? '#ffffff' : '#111827');
+        c.setAttribute('stroke', '#111827'); c.setAttribute('stroke-width', 2);
+        c.setAttribute('pointer-events', 'none');
+        layer.appendChild(c);
+        if (p.label) {
+          var t = document.createElementNS(NS, 'text');
+          t.setAttribute('x', cx + 8); t.setAttribute('y', cy - 8);
+          t.setAttribute('font-size', 14); t.setAttribute('fill', '#111827');
+          t.setAttribute('pointer-events', 'none');
+          t.textContent = String(p.label);
+          layer.appendChild(t);
+        }
+      });
+    }
+
+    function drawGraph(el, spec) {
+      if (typeof functionPlot === 'undefined') {
+        el.innerHTML = '<div class="graph-fail">(그래프 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하세요)</div>';
+        return;
+      }
+      var xd = domainOf(spec.x, [-5, 5]);
+      var yd = domainOf(spec.y, [-5, 5]);
+      var W = Math.min(560, Math.max(260, el.clientWidth || 560));
+      var H = Math.round(W * 0.58);
+
+      var data = [];
+      (spec.curves || []).forEach(function (c) {
+        if (!c || !c.fn) return;
+        var d = { fn: String(c.fn), color: pickColor(c.color) };
+        if (c.range && c.range.length === 2 && isFinite(c.range[0]) && isFinite(c.range[1])) {
+          d.range = [Number(c.range[0]), Number(c.range[1])];
+        }
+        if (c.dashed) d.attr = { 'stroke-dasharray': '6,5' };
+        data.push(d);
+      });
+      if (!data.length) data.push({ fn: '0', color: 'rgba(0,0,0,0)', skipTip: true });
+
+      var ann = [];
+      (spec.vlines || []).forEach(function (v) { if (v && isFinite(v.x)) ann.push({ x: Number(v.x), text: v.label ? String(v.label) : '' }); });
+      (spec.hlines || []).forEach(function (v) { if (v && isFinite(v.y)) ann.push({ y: Number(v.y), text: v.label ? String(v.label) : '' }); });
+
+      var chart = functionPlot({
+        target: el, width: W, height: H, grid: true, disableZoom: true,
+        xAxis: { domain: xd }, yAxis: { domain: yd },
+        data: data, annotations: ann
+      });
+      addMarkers(el, chart, spec, W, H, xd, yd);
+    }
+
+    function drawPending(root) {
+      var boxes = (root || document).querySelectorAll('.graph-box[data-gid]');
+      Array.prototype.forEach.call(boxes, function (box) {
+        if (box.getAttribute('data-drawn')) return;
+        if (box.offsetParent === null) return; // 숨겨진 탭은 나중에 그림
+        box.setAttribute('data-drawn', '1');
+        var spec = graphSpecs[box.getAttribute('data-gid')];
+        try { drawGraph(box, spec); }
+        catch (e) { box.innerHTML = '<div class="graph-fail">(이 그래프는 그리지 못했어요: ' + esc(e && e.message ? e.message : e) + ')</div>'; }
+      });
+    }
+
+    // =====================================================================
+    //  화면 그리기
+    // =====================================================================
+    function renderBlankText(text) {
+      var answers = [];
+      var tmp = String(text == null ? '' : text).replace(/\{\{([\s\S]*?)\}\}/g, function (m, a) {
+        answers.push(a);
+        return '\u0001' + (answers.length - 1) + '\u0002';
+      });
+      var h = fmt(tmp);
+      return h.replace(/\u0001(\d+)\u0002/g, function (m, i) {
+        var a = answers[Number(i)] || '';
+        var w = Math.max(70, Math.min(280, a.length * 24 + 34));
+        return '<input type="text" class="blank-input" autocomplete="off" data-answer="' + esc(a) + '" style="width:' + w + 'px">';
+      });
+    }
+
+    function renderExam(p, opt) {
+      opt = opt || {};
+      if (p == null) return '';
+      if (typeof p === 'string') p = { stem: p };
+      var uid = 'exam' + (++examSeq);
+      var pts = p.points ? '[' + esc(p.points) + '점]' : '';
+      var h = '<div class="exam-wrap"><div class="exam-paper" id="' + uid + '">';
+      h += '<p class="exam-stem">' + (p.number ? '<span class="exam-no">' + esc(p.number) + '.</span>' : '') + fmt(p.stem || '') + (pts ? '<span class="exam-pts">' + pts + '</span>' : '') + '</p>';
+      if (p.conditions && p.conditions.length) {
+        h += '<div class="exam-box">' + p.conditions.map(function (c) { return '<div>' + fmt(c) + '</div>'; }).join('') + '</div>';
+      }
+      if (p.view_items && p.view_items.length) {
+        h += '<div class="exam-box"><div class="exam-box-title">&lt;보 기&gt;</div>' + p.view_items.map(function (c) { return '<div>' + fmt(c) + '</div>'; }).join('') + '</div>';
+      }
+      if (hasGraph(p.graph)) { h += '<div class="exam-graph">' + graphBox(p.graph) + '</div>'; }
+      if (p.choices && p.choices.length) {
+        var nums = ['①', '②', '③', '④', '⑤'];
+        h += '<div class="exam-choices">' + p.choices.slice(0, 5).map(function (c, i) {
+          var txt = String(c).replace(/^\s*[①②③④⑤]\s*/, '');
+          return '<span>' + nums[i] + ' ' + fmt(txt) + '</span>';
+        }).join('') + '</div>';
+      }
+      h += '<div class="exam-foot">' + esc(opt.foot || 'AI 수능형 변형 문제') + '</div></div>';
+      h += '<button type="button" class="exam-save" data-exam="' + uid + '" data-name="수능형_변형문제_' + uid + '">🖼️ 이미지로 저장</button>';
+      if (!opt.noSol) h += '<details class="exam-sol"><summary>정답 · 풀이 보기</summary>' +
+           '<div>정답: <b>' + fmt(p.answer || '') + '</b></div>' +
+           '<div>' + fmt(p.solution || '') + '</div></details>';
+      h += '</div>';
+      return h;
+    }
+
+    function similarHtml(sp) {
+      var html = '';
+      var lv = [['level_low', '[하] 워밍업'], ['level_medium', '[중] 조건 변형'], ['level_high', '[상] 상황 변형'], ['level_extreme', '[극상] 킬러 융합']];
+      html += '<br><div class="section-title">🔥 난이도별 변형 문제 (수능형)</div><div class="tab-container">';
+      lv.forEach(function (l, i) {
+        html += '<button type="button" class="tab-btn' + (i === 0 ? ' active' : '') + (l[0] === 'level_extreme' ? ' tab-extreme' : '') + '" data-level="' + l[0] + '">' + l[1] + '</button>';
+      });
+      html += '</div>';
+      lv.forEach(function (l, i) {
+        html += '<div class="sim-pane' + (i === 0 ? ' active' : '') + '" id="sim-pane-' + l[0] + '">' + renderExam(sp[l[0]]) + '</div>';
+      });
+      return html;
+    }
+
+    function renderNotebook(aiData) {
+      graphSpecs = {}; graphSeq = 0; examSeq = 0;
+      var contentDiv = $('content');
+      var html = '';
+
+      html += navHomeHtml() + actionBarHtml(true);
+      html += '<div class="legend"><span class="mk-r">빨강 = 핵심 문장</span><span class="mk-b">파랑 = 문제 조건</span><span class="mk-h">형광펜 = 구하는 것</span></div>';
+
+      if (curBankItem) {
+        // 문제은행 항목: 사진이 없으므로 저장된 문제 본문을 시험지 형태로 보여줌
+        var bp = curBankItem.problem || {};
+        if (!bp.stem) bp = Object.assign({}, bp, { stem: aiData.original_problem_text || '' });
+        html += '<br><div class="section-title">📌 ' + esc(curBankItem.title || '문제') + '</div>';
+        html += '<div class="muted" style="margin:0 0 8px;">' + esc([curBankItem.unit, curBankItem.difficulty, (curBankItem.tags || []).join(' / ')].filter(Boolean).join(' · ')) +
+          (curBankItem.source ? ' · 출처: ' + esc(curBankItem.source) : '') + '</div>';
+        html += renderExam(Object.assign({}, bp, { answer: '', solution: '' }), { foot: '문제은행' + (curBankItem.source ? ' · ' + curBankItem.source : ''), noSol: true });
+      } else {
+        html += '<br><div class="section-title">📌 문제 원문</div>';
+        html += '<div class="problem-box">';
+        if (lastImageUrl) { html += '<img class="original-img" src="' + lastImageUrl + '" alt="문제 원문 이미지">'; }
+        if (aiData.original_problem_text) {
+          html += '<details class="orig-text"><summary>AI가 읽은 텍스트 보기 (이미지와 다르면 알려주세요)</summary>' + fmt(aiData.original_problem_text) + '</details>';
+        }
+        html += '</div>';
+      }
+
+      html += '<div class="section-title">🔍 실전 발문 분석</div>';
+      (aiData.prompt_analysis || []).forEach(function (item) {
+        var cls = item.type === 'goal' ? 'mk-h' : (item.type === 'key' ? 'mk-r' : 'mk-b');
+        html += '<div class="pa-row"><span class="' + cls + '">"' + fmt(item.phrase) + '"</span><span class="action-arrow">👉</span>' + fmt(item.action) + '</div>';
+      });
+
+      var idea = aiData.key_idea || aiData.why_logic;
+      if ((aiData.practical_skills_used && aiData.practical_skills_used.length) || idea) {
+        html += '<br><div class="section-title" style="color:#d97706;">⚡ 핵심 아이디어</div>';
+        if (idea) html += '<div class="problem-box">' + fmt(idea) + '</div>';
+        (aiData.practical_skills_used || []).forEach(function (skill) {
+          html += '<div style="margin:0; line-height:1.5;">✔️ ' + fmt(skill) + '</div>';
+        });
+      }
+
+      html += '<br><div class="section-title">✍️ 단계별 풀이</div>';
+      (aiData.step_by_step_solution || []).forEach(function (s, i) {
+        if (typeof s === 'string') s = { title: '', text: s };
+        var title = String(s.title || '').replace(/^\s*\d+\s*단계\s*[:.\-]?\s*/, '');
+        html += '<div class="step-card"><div class="step-title"><span class="step-no">' + (i + 1) + '</span>' + fmt(title) + '</div>' +
+                '<div class="step-text">' + fmt(s.text || '') + '</div>' + graphBox(s.graph) + '</div>';
+      });
+
+      if (aiData.case_graphs && aiData.case_graphs.length) {
+        html += '<br><div class="section-title">📊 개형 비교 (모순 vs 정답)</div>';
+        aiData.case_graphs.forEach(function (c) {
+          html += '<div class="case-container ' + (c.is_valid ? 'case-valid' : 'case-invalid') + '">' +
+            '<h3 class="case-title">' + (c.is_valid ? '⭕ ' : '❌ ') + fmt(c.title) + '</h3>' +
+            graphBox(c.graph) +
+            '<p style="color:#4b5563; margin:0;">💡 ' + fmt(c.description) + '</p></div>';
+        });
+      }
+
+      if (aiData.do_not_do_this) {
+        html += '<br><div class="section-title" style="color:#dc2626;">💀 이건 제발 하지 마</div>';
+        html += '<div class="problem-box" style="background-color:#fee2e2; border-color:#f87171;">' + fmt(aiData.do_not_do_this) + '</div>';
+      }
+
+      html += actionBarHtml(false);
+
+      contentDiv.innerHTML = html;
+      setTimeout(function () { drawPending(document); }, 60);
+    }
+
+    function showLevel(level, btn) {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.sim-pane').forEach(function (p) { p.classList.remove('active'); });
+      var pane = $('sim-pane-' + level);
+      if (pane) { pane.classList.add('active'); drawPending(pane); }
+    }
+
+    function norm(s) { return String(s || '').trim().replace(/\s+/g, '').toLowerCase(); }
+
+    function checkAnswers() {
+      document.querySelectorAll('#blank-quiz-container .blank-input').forEach(function (input) {
+        var u = norm(input.value);
+        var cands = (input.getAttribute('data-answer') || '').split('|').map(norm);
+        if (u !== '' && cands.indexOf(u) !== -1) {
+          input.style.backgroundColor = '#bbf7d0'; input.style.borderBottomColor = '#22c55e';
+        } else {
+          input.style.backgroundColor = '#fecaca'; input.style.borderBottomColor = '#ef4444';
+        }
+      });
+    }
+
+    function revealAnswers() {
+      document.querySelectorAll('#blank-quiz-container .blank-input').forEach(function (input) {
+        input.value = (input.getAttribute('data-answer') || '').split('|')[0];
+        input.style.backgroundColor = '#dbeafe'; input.style.borderBottomColor = '#2563eb';
+      });
+    }
+
+    function saveExamImage(btn) {
+      var el = $(btn.getAttribute('data-exam'));
+      if (!el) return;
+      if (typeof html2canvas === 'undefined') {
+        alert('이미지 저장 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하거나 캡처 도구(Win+Shift+S)를 사용해 주세요.');
+        return;
+      }
+      html2canvas(el, { backgroundColor: '#ffffff', scale: 2 }).then(function (canvas) {
+        canvas.toBlob(function (blob) {
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (btn.getAttribute('data-name') || '수능형_문제') + '.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+        });
+      }).catch(function (e) { alert('이미지 저장 실패: ' + (e && e.message ? e.message : e)); });
+    }
+
+    // =====================================================================
+    //  메인 동작
+    // =====================================================================
+    var lastImageUrl = '';
+
+    // =====================================================================
+    //  단계 이동(뒤로 가기) · 빈칸/변형 문제 만들기 · PDF 저장
+    // =====================================================================
+    var HOME_HTML = '';
+    var curView = 'main';
+    var gen = { blank: false, variants: false, busy: false };
+
+    var curBankItem = null;   // 문제은행에서 연 항목 (없으면 null)
+    function navHomeHtml() {
+      return '<div class="nav-row no-print">' +
+        (curBankItem ? '<button type="button" class="btn btn-sub" data-act="bank-list">← 문제은행 목록</button>' : '') +
+        '<button type="button" class="btn btn-sub" data-act="home">' + (curBankItem ? '처음으로' : '← 처음으로') + '</button></div>';
+    }
+    function actionBarHtml(top) {
+      return '<div class="action-bar no-print"><span class="muted">' + (top ? '풀이를 읽은 뒤 이어서 학습해 보세요 👉' : '다음 단계를 골라 보세요 👇') + '</span>' +
+        '<button type="button" class="btn" data-act="blank">✏️ 빈칸 문제 만들기</button>' +
+        '<button type="button" class="btn" data-act="variants">🔥 변형 문제 만들기</button>' +
+        '<button type="button" class="btn btn-sub" data-act="pdf-main">📄 풀이 PDF 저장</button>' +
+        '</div><div class="action-msg no-print"></div>';
+    }
+    function setActionMsg(t) {
+      document.querySelectorAll('.action-msg').forEach(function (el) { el.textContent = t || ''; });
+    }
+    function refreshActionLabels() {
+      document.querySelectorAll('[data-act="blank"]').forEach(function (b) { b.textContent = gen.blank ? '✏️ 빈칸 문제 보기' : '✏️ 빈칸 문제 만들기'; });
+      document.querySelectorAll('[data-act="variants"]').forEach(function (b) { b.textContent = gen.variants ? '🔥 변형 문제 보기' : '🔥 변형 문제 만들기'; });
+    }
+
+    function showView(name, push) {
+      curView = name;
+      $('content').style.display = name === 'main' ? '' : 'none';
+      $('view-blank').style.display = name === 'blank' ? '' : 'none';
+      $('view-variants').style.display = name === 'variants' ? '' : 'none';
+      if (push) { try { history.pushState({ v: name }, ''); } catch (e) { /* 무시 */ } }
+      var root = name === 'blank' ? $('view-blank') : (name === 'variants' ? $('view-variants') : $('content'));
+      setTimeout(function () { try { drawPending(root); window.scrollTo(0, 0); } catch (e) { /* 무시 */ } }, 60);
+    }
+    try { window.addEventListener('popstate', function (e) { showView(e.state && e.state.v ? e.state.v : 'main', false); }); } catch (e) { /* 무시 */ }
+
+    function goHome() {
+      globalAiData = null; lastReport = null; lastImagePayload = null; curBankItem = null; lastImageUrl = '';
+      gen = { blank: false, variants: false, busy: false };
+      $('view-blank').innerHTML = ''; $('view-variants').innerHTML = '';
+      $('content').innerHTML = HOME_HTML;
+      showView('main', false);
+    }
+
+    // 풀이를 글로만 정리한 것 (빈칸 문제를 만들 때 서버에 보냄)
+    function solutionText(a) {
+      var t = '';
+      var idea = a.key_idea || a.why_logic;
+      if (idea) t += '핵심 아이디어: ' + idea + '\n';
+      if (a.practical_skills_used && a.practical_skills_used.length) t += '사용 스킬: ' + a.practical_skills_used.join(', ') + '\n';
+      (a.step_by_step_solution || []).forEach(function (st, i) {
+        if (typeof st === 'string') st = { title: '', text: st };
+        t += (i + 1) + '단계 ' + (st.title || '') + ': ' + (st.text || '') + '\n';
+      });
+      if (a.do_not_do_this) t += '주의: ' + a.do_not_do_this + '\n';
+      return t.slice(0, 19000);
+    }
+
+    function plainAnswerHtml(text) {
+      var h = fmt(String(text == null ? '' : text).replace(/\{\{([\s\S]*?)\}\}/g, function (m, a) { return '\u0001' + String(a).split('|')[0] + '\u0002'; }));
+      return h.replace(/\u0001([\s\S]*?)\u0002/g, '<span class="ans-mark">$1</span>');
+    }
+
+    function viewNavHtml(kind) {
+      var other = kind === 'blank' ? 'variants' : 'blank';
+      return '<div class="nav-row no-print">' +
+        '<button type="button" class="btn btn-sub" data-act="back">← 풀이로 돌아가기</button>' +
+        '<button type="button" class="btn" data-act="' + other + '">' + (other === 'blank' ? '✏️ 빈칸 문제' : '🔥 변형 문제') + '</button>' +
+        '<button type="button" class="btn btn-sub" data-act="regen-' + kind + '">🔄 다시 만들기</button>' +
+        '<button type="button" class="btn btn-sub" data-act="pdf-' + kind + '">📄 PDF 저장</button>' +
+        '<label><input type="checkbox" id="pdf-ans-' + kind + '" checked> PDF에 정답·해설 포함</label>' +
+        '</div><div class="action-msg no-print"></div>';
+    }
+
+    function blankViewHtml(bq, took) {
+      var items = bq.items || [];
+      var h = viewNavHtml('blank') + '<div class="print-head">AI 수학 튜터 노트 · 빈칸 문제</div>';
+      h += '<div class="section-title">📝 빈칸 채우기 훈련</div>';
+      if (bq.intro) h += '<div style="line-height:1.5; margin-bottom:8px;">' + fmt(bq.intro) + '</div>';
+      h += '<div class="problem-box" id="blank-quiz-container">' +
+        items.map(function (it, i) { return '<div class="quiz-item">' + (i + 1) + '. ' + renderBlankText(typeof it === 'string' ? it : it.text) + '</div>'; }).join('') +
+        '</div><button type="button" class="check-btn" id="check-btn">정답 확인</button><button type="button" class="check-btn alt" id="reveal-btn">정답 보기</button>';
+      h += '<div class="print-answers"><div class="section-title">정답</div>' +
+        items.map(function (it, i) { return '<div class="ans-item">' + (i + 1) + '. ' + plainAnswerHtml(typeof it === 'string' ? it : it.text) + '</div>'; }).join('') + '</div>';
+      h += '<div class="muted no-print" style="text-align:center; font-size:12px; color:#9ca3af;">⏱ ' + esc(took || '') + '</div>';
+      return h;
+    }
+
+    function variantsViewHtml(sp, took) {
+      var lv = [['level_low', '[하]'], ['level_medium', '[중]'], ['level_high', '[상]'], ['level_extreme', '[극상]']];
+      var h = viewNavHtml('variants') + '<div class="print-head">AI 수학 튜터 노트 · 수능형 변형 문제</div>' + similarHtml(sp);
+      h += '<div class="print-answers"><div class="section-title">정답 및 해설</div>';
+      lv.forEach(function (l) {
+        var p = sp[l[0]]; if (!p) return;
+        if (typeof p === 'string') p = { stem: p };
+        h += '<div class="ans-item"><b>' + l[1] + ' ' + (p.number ? esc(p.number) + '번 ' : '') + '정답: ' + fmt(p.answer == null ? '' : p.answer) + '</b><br>' + fmt(p.solution || '') + '</div>';
+      });
+      h += '</div><div class="muted no-print" style="text-align:center; font-size:12px; color:#9ca3af;">⏱ ' + esc(took || '') + '</div>';
+      return h;
+    }
+
+    // 빈칸 문제 / 변형 문제 만들기 (이미 만들었으면 그대로 보여줌)
+    async function openGenerated(kind, force) {
+      if (!globalAiData || gen.busy) return;
+      if (gen[kind] && !force) { showView(kind, curView === 'main'); return; }
+      gen.busy = true;
+      var label = kind === 'blank' ? '빈칸 문제' : '변형 문제';
+      setActionMsg('⏳ ' + label + '를 만드는 중이에요... (보통 10~40초)');
+      setBusy(true, label + '를 만들고 있어요');
+      var t0 = Date.now();
+      try {
+        var d;
+        if (kind === 'blank') d = await callServer('blank', { solution: solutionText(globalAiData) });
+        else if (lastImagePayload) d = await callServer('variants', { image: lastImagePayload, hint: String(globalAiData.key_idea || '').slice(0, 1400) });
+        else d = await callServer('variants', { problem: bankProblemText(), solution: solutionText(globalAiData) });   // 문제은행 항목: 사진 없이 텍스트로
+        var took = fmtTiming(d, t0);
+        var obj = extractJson(getText(d));
+        if (kind === 'blank') {
+          var bq = obj && obj.blank_quiz;
+          if (!bq || !bq.items || !bq.items.length) throw new Error('빈칸 문제를 만들지 못했어요. 다시 시도해 주세요.');
+          globalAiData.blank_quiz = bq;
+          $('view-blank').innerHTML = blankViewHtml(bq, took);
+        } else {
+          var sp = obj && obj.similar_problems;
+          if (!sp || !(sp.level_low || sp.level_medium || sp.level_high || sp.level_extreme)) throw new Error('변형 문제를 만들지 못했어요. 다시 시도해 주세요.');
+          globalAiData.similar_problems = sp;
+          $('view-variants').innerHTML = variantsViewHtml(sp, took);
+        }
+        gen[kind] = true;
+        setActionMsg('');
+        refreshActionLabels();
+        showView(kind, curView === 'main');
+      } catch (e) {
+        var msg = '❌ ' + ((e && e.message) || e);
+        setActionMsg(msg);
+        if (curView !== 'main') { /* 이미 결과 화면에서 다시 만들기를 눌렀다면 그 화면의 안내 칸에도 표시됨 */ }
+      } finally {
+        gen.busy = false;
+        setBusy(false);
+      }
+    }
+
+    // PDF 저장: 브라우저의 인쇄 창에서 '대상: PDF로 저장'을 고르면 돼요 (글자·그래프가 선명하게 저장됨)
+    function printView(kind) {
+      var box = kind === 'blank' ? $('view-blank') : (kind === 'variants' ? $('view-variants') : $('content'));
+      var cb = $('pdf-ans-' + kind);
+      box.classList.toggle('with-answers', !!cb && cb.checked);
+      var names = { main: '풀이', blank: '빈칸문제', variants: '변형문제' };
+      var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+      var oldTitle = document.title;
+      document.title = '수학튜터_' + names[kind] + '_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate());
+      document.body.classList.add('pr-' + kind);
+      var finished = false;
+      function done() {
+        if (finished) return; finished = true;
+        document.body.classList.remove('pr-' + kind);
+        document.title = oldTitle;
+        try { window.removeEventListener('afterprint', done); } catch (e) { /* 무시 */ }
+      }
+      try { window.addEventListener('afterprint', done); } catch (e) { /* 무시 */ }
+      setTimeout(function () {
+        try { window.print(); } catch (e) { alert('이 브라우저에서는 인쇄 창을 열 수 없어요. Ctrl+P 로 인쇄 창을 열고 ‘PDF로 저장’을 골라 주세요.'); }
+        setTimeout(done, 1500);
+      }, 150);
+    }
+
+    var lastReport = null;
+    var lastImagePayload = null;
+    var timingInfo = {};
+    function showTiming() {
+      var el = $('timing-line');
+      if (el) el.textContent = timingInfo.analyze ? ('⏱ 풀이 ' + timingInfo.analyze + ' (모델 ' + getModel() + ')') : '';
+    }
+    function fmtTiming(d, t0) {
+      var s = ((Date.now() - t0) / 1000).toFixed(0) + '초';
+      if (d && d._timing && typeof d._timing.thoughts === 'number') s += ' (생각토큰 ' + d._timing.thoughts + ')';
+      return s + ' · 모델 ' + getModel();
+    }
+
+    function reportBtnHtml() {
+      return '<div style="text-align:center;"><button type="button" class="report-btn" id="report-btn">🚩 해설·문제에 틀린 부분이 있어요 (신고)</button></div>';
+    }
+
+    // =====================================================================
+    //  문제은행 (공개 문제 DB) — 저장된 풀이를 바로 열람 (Gemini 키 불필요)
+    // =====================================================================
+    var bankRows = null;
+    var bankFilter = { q: '', unit: '', diff: '' };
+    var BANK_COLS = 'id,title,source,unit,difficulty,tags,preview,has_blank,has_variants,created_at';
+
+    function bankProblemText() {
+      var p = (curBankItem && curBankItem.problem) || {};
+      var t = '';
+      if (p.number) t += p.number + '번 ';
+      t += (p.stem || (globalAiData && globalAiData.original_problem_text) || '') + '\n';
+      (p.conditions || []).forEach(function (c) { t += '조건: ' + c + '\n'; });
+      (p.view_items || []).forEach(function (c) { t += '<보기> ' + c + '\n'; });
+      if (p.choices && p.choices.length) t += '선지: ' + p.choices.map(function (c, i) { return (i + 1) + ') ' + c; }).join('  ');
+      return t.slice(0, 3900);
+    }
+
+    async function bankGet(path) {
+      if (!cfgOk()) throw new Error('사이트 설정이 아직 끝나지 않았어요.');
+      var r = await fetch(SUPABASE_URL + '/rest/v1/' + path, { headers: { 'apikey': SUPABASE_ANON_KEY } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }
+
+    function bankResultsHtml() {
+      var q = bankFilter.q.trim().toLowerCase();
+      var rows = (bankRows || []).filter(function (r) {
+        if (bankFilter.unit && r.unit !== bankFilter.unit) return false;
+        if (bankFilter.diff && r.difficulty !== bankFilter.diff) return false;
+        if (!q) return true;
+        return (r.title + ' ' + r.unit + ' ' + r.difficulty + ' ' + (r.tags || []).join(' ') + ' ' + r.source + ' ' + (r.preview || '')).toLowerCase().indexOf(q) !== -1;
+      });
+      if (!rows.length) return '<div class="muted" style="text-align:center; margin-top:30px;">' + ((bankRows || []).length ? '조건에 맞는 문제가 없어요.' : '아직 공개된 문제가 없어요.') + '</div>';
+      return '<div class="muted" style="margin-bottom:8px;">' + rows.length + '문제</div>' + rows.map(function (r) {
+        return '<div class="bank-card" data-bank-open="' + esc(r.id) + '">' +
+          '<div class="bk-title">' + esc(r.title || '(제목 없음)') + '</div>' +
+          '<div class="bk-meta">' + esc([r.unit, r.difficulty].filter(Boolean).join(' · ')) + (r.source ? ' · 출처: ' + esc(r.source) : '') + '</div>' +
+          (r.preview ? '<div class="bk-prev">' + esc(r.preview) + (String(r.preview).length >= 160 ? '…' : '') + '</div>' : '') +
+          '<div style="margin-top:6px;">' + (r.tags || []).map(function (t) { return '<span class="bk-chip">#' + esc(t) + '</span>'; }).join('') +
+          '<span class="bk-chip ok">풀이</span>' + (r.has_blank ? '<span class="bk-chip ok">빈칸</span>' : '') + (r.has_variants ? '<span class="bk-chip ok">변형</span>' : '') + '</div></div>';
+      }).join('');
+    }
+    function bankRefreshResults() { var el = $('bank-results'); if (el) el.innerHTML = bankResultsHtml(); }
+
+    async function openBank() {
+      curBankItem = null; globalAiData = null; lastReport = null;
+      showView('main', false);
+      $('content').innerHTML = navHomeHtml() + '<div class="section-title">📚 문제은행</div><div class="muted" style="text-align:center;">불러오는 중...</div>';
+      try {
+        if (!bankRows) bankRows = await bankGet('problem_bank_public?select=' + BANK_COLS + '&order=created_at.desc&limit=1000');
+      } catch (e) {
+        $('content').innerHTML = navHomeHtml() + '<div class="section-title">📚 문제은행</div><div class="problem-box" style="font-family:sans-serif; font-size:16px; line-height:1.6;">' +
+          '문제은행을 아직 불러올 수 없어요. (운영자가 준비 중일 수 있어요)<br><span class="muted">' + esc(e && e.message ? e.message : e) + '</span></div>';
+        return;
+      }
+      var units = [], seen = {};
+      bankRows.forEach(function (r) { if (r.unit && !seen[r.unit]) { seen[r.unit] = 1; units.push(r.unit); } });
+      units.sort();
+      $('content').innerHTML = navHomeHtml() + '<div class="section-title">📚 문제은행</div>' +
+        '<div class="muted" style="margin:0 0 6px;">풀이가 저장된 문제예요. 열면 풀이를 바로 볼 수 있고(키 불필요), 이어서 빈칸·변형 문제도 만들 수 있어요.</div>' +
+        '<div class="bank-bar no-print"><input type="text" id="bank-search" placeholder="검색 (제목, 단원, 태그, 문제 내용)" value="' + esc(bankFilter.q) + '">' +
+        '<select id="bank-unit"><option value="">전체 단원</option>' + units.map(function (u) { return '<option' + (u === bankFilter.unit ? ' selected' : '') + '>' + esc(u) + '</option>'; }).join('') + '</select>' +
+        '<select id="bank-diff"><option value="">전체 난이도</option>' + ['하', '중', '상', '극상'].map(function (d) { return '<option' + (d === bankFilter.diff ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
+        '<div id="bank-results">' + bankResultsHtml() + '</div>';
+    }
+
+    async function openBankItem(id) {
+      $('content').innerHTML = '<div style="text-align:center; color:#3b82f6; margin-top:100px;">문제를 불러오는 중...</div>';
+      try {
+        var rows = await bankGet('problem_bank_public?id=eq.' + encodeURIComponent(id) + '&select=id,title,source,unit,difficulty,tags,problem,answer,analysis');
+        var row = rows && rows[0];
+        if (!row || !row.analysis || !row.analysis.step_by_step_solution) throw new Error('이 문제는 더 이상 공개되어 있지 않아요.');
+        curBankItem = row;
+        lastImageUrl = ''; lastImagePayload = null;
+        gen = { blank: false, variants: false, busy: false };
+        $('view-blank').innerHTML = ''; $('view-variants').innerHTML = '';
+        globalAiData = row.analysis;
+        renderNotebook(globalAiData);
+        lastReport = { kind: 'analyze', payload: { bank_id: row.id, title: row.title } };
+        $('content').insertAdjacentHTML('beforeend', reportBtnHtml());
+        // 저장된 빈칸/변형 문제가 있으면 AI 호출 없이 바로 열 수 있게 미리 채워둠
+        var bq = globalAiData.blank_quiz;
+        if (bq && bq.items && bq.items.length) { $('view-blank').innerHTML = blankViewHtml(bq, '저장된 문제'); gen.blank = true; }
+        var sp = globalAiData.similar_problems;
+        if (sp && (sp.level_low || sp.level_medium || sp.level_high || sp.level_extreme)) { $('view-variants').innerHTML = variantsViewHtml(sp, '저장된 문제'); gen.variants = true; }
+        refreshActionLabels();
+        showView('main', false);
+      } catch (e) {
+        curBankItem = null;
+        $('content').innerHTML = navHomeHtml() + '<div class="problem-box" style="font-family:sans-serif;">' + esc(e && e.message ? e.message : e) + '</div><div class="nav-row"><button type="button" class="btn btn-sub" data-act="bank-list">← 문제은행 목록</button></div>';
+      }
+    }
+
+    async function startAnalysis() {
+      if (!S.access) { alert('먼저 로그인해 주세요. (이메일만 있으면 돼요)'); return; }
+      var fileInput = $('image-upload');
+      if (!fileInput.files || fileInput.files.length === 0) { alert('문제 사진을 업로드해주세요.'); return; }
+      var file = fileInput.files[0];
+
+      showView('main', false);
+      curBankItem = null;
+      gen = { blank: false, variants: false, busy: false };
+      $('view-blank').innerHTML = ''; $('view-variants').innerHTML = '';
+      setBusy(true, '최상위권 튜터가 문제를 풀고 있습니다. 풀이를 먼저 보여드려요 (보통 20~50초)');
+      $('content').innerHTML = '<div style="text-align:center; color:#3b82f6; margin-top:100px;">사진을 보내서 분석 중...</div>';
+
+      try {
+        var img = await prepareImage(file);
+        lastImageUrl = img.dataUrl;
+        lastImagePayload = { mime: img.mime, b64: img.b64 };
+        timingInfo = {};
+        var ta0 = Date.now();
+        var data = await callServer('analyze', { image: lastImagePayload });
+        timingInfo.analyze = fmtTiming(data, ta0).replace(/ · 모델 .*$/, '');
+        globalAiData = extractJson(getText(data));
+        renderNotebook(globalAiData);
+        lastReport = { kind: 'analyze', payload: globalAiData };
+        $('content').insertAdjacentHTML('beforeend', reportBtnHtml() + '<div id="timing-line" class="muted" style="text-align:center; font-size:12px; color:#9ca3af;"></div>');
+        showTiming();
+        refreshActionLabels();
+      } catch (error) {
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function startGenerate() {
+      if (!S.access) { alert('먼저 로그인해 주세요. (이메일만 있으면 돼요)'); return; }
+      var req = $('gen-request').value.trim();
+      var count = Number($('gen-count').value) || 3;
+      if (!req) { alert('어떤 문제를 낼지 적어주세요.'); return; }
+
+      curBankItem = null; showView('main', false);
+      setBusy(true, '수능형 문제를 출제하고 있습니다');
+      $('content').innerHTML = '<div style="text-align:center; color:#3b82f6; margin-top:100px;">문제 출제 중...</div>';
+      try {
+        var data = await callServer('generate', { request: req, count: count });
+        var obj = extractJson(getText(data));
+        var list = obj.problems || [];
+        if (!list.length) throw new Error('출제된 문제가 없습니다. 수학 문제 요청인지 확인하고, 조금 더 구체적으로 적어 다시 시도해 주세요.');
+
+        graphSpecs = {}; graphSeq = 0; examSeq = 0;
+        var html = navHomeHtml() + '<div class="section-title">📝 출제된 문제 (' + list.length + '문제)</div>';
+        html += '<div class="problem-box" style="line-height:1.5;">요청: ' + esc(req) + '</div>';
+        list.forEach(function (p, i) {
+          html += '<div style="margin:18px 0 6px; font-size:26px; line-height:1.3;">' + (p.level_label ? '🔸 난이도: ' + esc(p.level_label) : '🔸 문제 ' + (i + 1)) + '</div>' + renderExam(p);
+        });
+        html += reportBtnHtml();
+        $('content').innerHTML = html;
+        lastReport = { kind: 'generate', payload: { request: req, problems: list } };
+        setTimeout(function () { drawPending(document); }, 60);
+      } catch (error) {
+        showError(error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    // ---- 이벤트 연결 ----
+    $('analyze-btn').addEventListener('click', startAnalysis);
+    $('gen-btn').addEventListener('click', startGenerate);
+    $('db-open-btn').addEventListener('click', openDb);
+    $('bank-open-btn').addEventListener('click', openBank);
+    $('auth-login').addEventListener('click', function () { doLogin(false); });
+    $('auth-signup').addEventListener('click', function () { doLogin(true); });
+    $('auth-logout').addEventListener('click', doLogout);
+    $('auth-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(false); });
+
+    var dbTimer = null;
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.id === 'db-search') {
+        var v = e.target.value;
+        clearTimeout(dbTimer);
+        dbTimer = setTimeout(function () { renderDbResults(v); }, 200);
+      }
+    });
+
+    document.addEventListener('input', function (e) { if (e.target && e.target.id === 'bank-search') { bankFilter.q = e.target.value; bankRefreshResults(); } });
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'bank-unit') { bankFilter.unit = e.target.value; bankRefreshResults(); }
+      if (e.target && e.target.id === 'bank-diff') { bankFilter.diff = e.target.value; bankRefreshResults(); }
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var tab = t.closest('[data-level]');
+      if (tab) { showLevel(tab.getAttribute('data-level'), tab); return; }
+      if (t.closest('#check-btn')) { checkAnswers(); return; }
+      if (t.closest('#reveal-btn')) { revealAnswers(); return; }
+      if (t.closest('#report-btn')) { sendReport(); return; }
+      var bk = t.closest('[data-bank-open]');
+      if (bk) { openBankItem(bk.getAttribute('data-bank-open')); return; }
+      var act = t.closest('[data-act]');
+      if (act) {
+        var k = act.getAttribute('data-act');
+        if (k === 'home') goHome();
+        else if (k === 'bank-list') openBank();
+        else if (k === 'back') { if (history.state && history.state.v) { try { history.back(); } catch (e) { showView('main', false); } } else showView('main', false); }
+        else if (k === 'blank' || k === 'variants') openGenerated(k, false);
+        else if (k === 'regen-blank') openGenerated('blank', true);
+        else if (k === 'regen-variants') openGenerated('variants', true);
+        else if (k === 'pdf-main') printView('main');
+        else if (k === 'pdf-blank') printView('blank');
+        else if (k === 'pdf-variants') printView('variants');
+        return;
+      }
+      var sv = t.closest('[data-exam]');
+      if (sv) { saveExamImage(sv); }
+    });
+
+    // ---- 시작 ----
+    function isSecretKey(k) {
+      if (/^sb_secret_/i.test(k)) return true;
+      try {
+        var p = k.split('.');
+        if (p.length === 3) {
+          var json = JSON.parse(atob(p[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (json && json.role && json.role !== 'anon') return true;
+        }
+      } catch (e) { /* JWT가 아니면 무시 */ }
+      return false;
+    }
+    function showSetupIfNeeded() { $('setup-box').style.display = cfgOk() ? 'none' : 'block'; }
+    $('setup-save').addEventListener('click', function () {
+      var k = $('setup-key').value.trim();
+      if (k.length < 20) { alert('anon(publishable) 키를 정확히 붙여넣어 주세요.'); return; }
+      if (isSecretKey(k)) { alert('이 키는 secret(service_role) 키예요. 절대 여기에 넣으면 안 돼요!\nAPI Keys 화면에서 anon 또는 publishable 키를 복사해 주세요.'); $('setup-key').value = ''; return; }
+      SUPABASE_ANON_KEY = k; safeSet(KEY_STORE, k);
+      $('setup-key').value = '';
+      showSetupIfNeeded();
+      authMsg('✅ 저장했어요. 이제 회원가입과 로그인을 할 수 있어요.');
+      loadKb();
+    });
+    try {
+      var _m = safeGet(MODEL_STORE);
+      if (_m && MODEL_RE_C.test(_m)) { var _sel = $('gmodel-select'); _sel.innerHTML = '<option value="' + esc(_m) + '">' + esc(_m) + '</option><option value="' + CUSTOM + '">직접 입력…</option>'; _sel.value = _m; }
+    } catch (e) { /* 무시 */ }
+    $('gmodel-select').addEventListener('change', function () {
+      var custom = $('gmodel-select').value === CUSTOM;
+      $('gmodel-input').style.display = custom ? 'block' : 'none';
+      if (!custom) { safeSet(MODEL_STORE, getModel()); keyMsg('모델: ' + getModel()); }
+    });
+    $('gmodel-input').addEventListener('change', function () { var v = getModel(); safeSet(MODEL_STORE, v); keyMsg('모델: ' + v); });
+    $('gkey-save').addEventListener('click', saveKey);
+    $('gkey-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveKey(); });
+    $('gkey-change').addEventListener('click', function () { openKeyForm(''); });
+    $('gkey-forget').addEventListener('click', function () { forgetKey(false); });
+    renderKey();
+    loadStoredKey();
+    HOME_HTML = $('content').innerHTML;
+    showSetupIfNeeded();
+    loadKb();
+    (async function () {
+      try {
+        var saved = JSON.parse(safeGet(SESSION_KEY) || '{}');
+        if (cfgOk() && saved.refresh) {
+          S.refresh = saved.refresh; S.email = saved.email || '';
+          await refreshSession(); renderAuth(); fetchQuota();
+        }
+      } catch (e) { /* 저장된 로그인이 없거나 만료 */ }
+    })();
+  </script>
+</body>
+</html>
